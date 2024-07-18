@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Web application creation blog about Azure, Angular, and .NET">
+    <title>Blog about Azure, Angular, and .NET</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body >
+<header>
+    <a class="custom-anchor-white" href="index.html"><h1>Exploring clouds and coding</h1></a>
+</header>
+
+<nav>
+    <ul >
+        <li><a href="index.html">Azure</a></li>
+        <li><a href="angular.html">Angular</a></li>
+        <li><a href="net.html">.NET</a></li>
+    </ul>
+</nav>
+<main class="article-container">
+    <h1 class="text-center">Creating a blog on Azure in the cheapest way</h1>
+    <h4 class="text-center">(7/18/2024)</h4>
+    <p> This article is about creating a website on the Azure Storage service with an apex domain and HTTPS enabled.
+        I will show you the steps required to do that with Azure services and
+        <a href="https://github.com/shibayan/keyvault-acmebot">Key Vault Acmebot</a>.</p>
+
+    <div class="image-container">
+        <img class="small-image"
+             src="https://websitest1.blob.core.windows.net/images/5f156949-6dfb-4201-92a1-4aea547a8d99.svg" alt="image">
+        <small>Architecture of the cloud infrastructure</small>
+    </div>
+    <p> You will need to create Azure Key Vault, Azure Function, Azure Storage, Azure DNS, and Azure CDN services.
+        Azure Storage will host your website. Azure Function allows you to generate a certificate from Let's Encrypt
+        and send it to your Key Vault, so you will be able to add the certificate to your custom domain from
+        Azure CDN.</p>
+    <div class="table-of-contents-container">
+        <h2>Table of contents</h2>
+        <a class="custom-anchor-black" href="#first-header"><h4>1. Prerequisites</h4></a>
+        <a class="custom-anchor-black" href="#second-header"><h4>2. Configure Key Vault Acmebot</h4></a>
+        <a class="custom-anchor-black" href="#third-header"><h4>3. Generate certificate</h4></a>
+        <a class="custom-anchor-black" href="#fourth-header"><h4>4. Certify your custom domain</h4></a>
+        <a class="custom-anchor-black" href="#fifth-header"><h4>5. Create engine rules</h4></a>
+        <a class="custom-anchor-black" href="#sixth-header"><h4>6. Costs</h4></a>
+    </div>
+
+
+    <div>
+        <h2 id="first-header">Prerequisites</h2>
+        <h4>&#9679; Create your static website on Azure Storage service.</h4>
+        <p>Create your static website on the Azure Storage service. Set up Azure Storage and create a $web container
+            to store your static website files.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/4cde927d-f425-4844-bf0c-f5602fd00971.png" alt="image">
+        </div>
+        <p>Remember your website address as it will be necessary to create an Azure CDN Endpoint.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/19062662-b578-44be-b202-72b83d4ebf23.png" alt="image">
+        </div>
+
+        <h4>&#9679; Purchase your custom domain from your chosen provider.</h4>
+        <p>In my case, I bought mine from OVH, and I can show you how to configure it with Azure DNS.</p>
+
+        <h4>&#9679; Set up Azure DNS service.</h4>
+        <p>Create Azure DNS and migrate your DNS servers to this service. For this, I changed the default DNS Servers
+            in the OVH panel to Azure DNS Servers.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/56e10633-c1f7-46bf-85d0-457220dd4785.png" alt="image">
+        </div>
+
+        <h4>&#9679; Create an Azure CDN profile.</h4>
+        <p>Note that a subscription must be paid as Azure does not allow creating Azure CDN profiles with a free
+            subscription.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/f8d567d7-140f-459f-ba97-7947ee019518.png" alt="image">
+        </div>
+
+        <h4>&#9679; Create an Azure CDN endpoint.</h4>
+        <p>This endpoint will provide access to your static website hosted on Azure Storage.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/6732ac60-9976-4726-8945-9e3ab34a1456.png" alt="image">
+        </div>
+
+        <h4>&#9679; Add a record set for Azure CDN endpoints.</h4>
+        <p>In my case, I want to use my custom domain with and without the www subdomain, so I must add two
+            redirections in my Azure DNS records for my Azure CDN endpoint.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/68907111-76e9-4ac3-87c7-e25671555be4.png" alt="image">
+        </div>
+
+        <h4>&#9679; Add your custom domain in Azure CDN.</h4>
+        <p>Note that it may take some time for Azure to process adding records and custom domains.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/ec6f03a2-c6af-4847-89f3-3d9305e3f60f.png" alt="image">
+        </div>
+    </div>
+
+
+    <div class="header-padding">
+        <h2 id="second-header">Configure Key Vault Acmebot</h2>
+    </div>
+
+    <div>
+        <h4>&#9679; Deploy to Azure.</h4>
+        <p>Next, deploy Key Vault Acmebot by clicking the "Deploy to Azure" button from here
+            <a href="https://github.com/shibayan/keyvault-acmebot">keyvault-acmebot</a>. After redirection to your
+            Azure account, fill out the necessary form data. This will create an Azure Function service that allows
+            you to create certificates and send them to Azure Key Vault. </p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/803a2586-5ae0-425f-9cda-c392437465a1.png" alt="image">
+        </div>
+
+        <p>This ARM template will generate your Azure Function and Azure Key Vault, ready for use.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/779fff17-9f79-496b-946f-75bd83a48e7a.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Change Key Vault access.</h4>
+        <p>You will need access to your Key Vault from Azure CDN, so enabling the Vault access policy is necessary.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/03badf8f-868c-43a0-911b-93b291e31808.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Create an access policy for Azure Function.</h4>
+        <p>Grant permissions to the Azure Function that will manage your certificates.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/f6a25272-45ad-47fd-83ba-2a5c23f86a30.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Create an access policy for Azure user (optional).</h4>
+        <p>If you need to view certificates in your Azure Key Vault, grant permissions accordingly.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/188d2fcf-3d4f-4af2-8ab0-6499566825e9.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Create an access policy for Azure CDN.</h4>
+        <p>This is crucial for Azure CDN access. Ensure you select the correct principal name.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/eaf89305-4fe9-47a0-9176-c32ac21d61b3.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Configure Authentication for Azure Function.</h4>
+        <p>Key Vault Acmebot provides a web application to read and create certificates, so enabling authentication
+            is required.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/70673810-7293-4d75-be26-767a4642dd8f.png" alt="image">
+        </div>
+
+        <p>Accept default data in the form.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/064d60bb-95ed-46d6-a953-bb809f655945.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Add an environment variable in Azure Function.</h4>
+        <p>Add "Acmebot:AzureDns" to your environment variables and fill in your subscription ID. Apply and save changes.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/546582bb-d3d6-44d3-a272-07c1353065b7.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Assign a role to Azure Function.</h4>
+        <p>Assign the DNS Zone Contributor role to your Azure Function in the Azure DNS service.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/079fd3db-78df-49e8-99ee-8a702e95f611.png" alt="image">
+        </div>
+    </div>
+
+
+    <div class="header-padding">
+        <h2 id="third-header">Generate certificate</h2>
+    </div>
+
+    <div>
+        <p>Once you receive a successful response, your certificate will be sent to Azure Key Vault.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/ad7eb2c0-cb3d-43b0-9e30-7feda5ad0bcd.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <p>You can view all added certificates in your web application.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/45122929-feba-4621-90bc-e894acb6e98c.png" alt="image">
+        </div>
+    </div>
+
+
+    <div class="header-padding">
+        <h2 id="fourth-header">Certify your custom domain</h2>
+    </div>
+
+    <div>
+        <p> Return to your custom domain settings in Azure CDN and select the Key Vault and certificate you wish to
+            use.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/1c51ce07-35a0-4238-bf0f-7bdb60675b0d.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <p>If you have both an apex domain and a domain with the www subdomain, you will need to use two certificates
+            for HTTPS access. Repeat the previous steps as necessary.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/f7d64b81-fbaa-4525-8276-860d53891a77.png" alt="image">
+        </div>
+    </div>
+
+
+    <div class="header-padding">
+        <h2 id="fifth-header">Create engine rules</h2>
+        <p>The final step is to add engine rules to redirect users whose URLs include the HTTP protocol
+            and www subdomain.</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/88bf6c88-5896-4efe-ab77-7ec3731a8659.png" alt="image">
+        </div>
+    </div>
+
+    <div class="header-padding">
+        <h2 id="sixth-header">Costs</h2>
+        <p>Creating a blog on Azure Storage is the most economical option. You will be charged based on the number of
+            transactions made by your website visitors, the storage space used, outbound data transfers, and DNS zone
+            costs. If you are looking for an alternative, consider trying Azure Static Web Apps.
+        </p>
+
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/a6c26eb2-4d94-496f-abad-1d863d7a3abf.png" alt="image">
+        </div>
+        <p class="text-center">If you found this article helpful, give it a star on my GitHub repository
+            dedicated to this blog.</p>
+
+    </div>
+</main>
+<footer>
+    <div class="footer-item">
+        <p>&copy; 2024 lewyweb.pl. All rights reserved.</p>
+    </div>
+
+
+    <div class="footer-item">
+        <a href="https://github.com/lewy256">
+            <i class="fa-brands fa-github github-icon" ></i>
+        </a>
+    </div>
+
+
+    <div class="footer-item icon-padding">
+        <a class="github-button" href="https://github.com/lewy256/Blog"
+           data-color-scheme="no-preference: light; light: light; dark: light;"
+           data-icon="octicon-star" data-size="large" data-show-count="true"
+           aria-label="Star buttons/github-buttons on GitHub">Star</a>
+    </div>
+
+
+</footer>
+
+<script src="https://buttons.github.io/buttons.js"></script>
+<script src="scripts.js"></script>
+
+</body>
+</html>
