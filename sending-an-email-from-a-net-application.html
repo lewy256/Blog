@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Creating a blog on Azure in the cheapest way">
+    <title>Sending an Email from a .NET Application</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tomorrow-night-blue.min.css">
+</head>
+<body >
+<header>
+    <a class="custom-anchor-white" href="index.html"><h1>Exploring clouds and coding</h1></a>
+</header>
+
+<nav>
+    <ul >
+        <li><a href="index.html">Azure</a></li>
+        <li><a href="angular.html">Angular</a></li>
+        <li><a href="net.html">.NET</a></li>
+    </ul>
+</nav>
+<main class="article-container">
+    <h1 class="text-center">Sending an email from a .NET application</h1>
+    <h4 class="text-center">(8/17/2024)</h4>
+    <p> This article explains how to send an email from a .NET application using Gmail's SMTP server in three steps:
+        create a Gmail account, enable two-factor authentication, and generate an app password for your .NET
+        application.</p>
+
+    <div>
+        <h4>&#9679; Create a Gmail account and enable two-factor authentication for your Gmail account.</h4>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/0fefe2f0-9e7b-43c0-af51-0e423623da19.png" alt="image">
+        </div>
+    </div>
+
+    <div>
+        <h4>&#9679; Generate an app password.</h4>
+        <p>To find the app password generator, you can use the search bar.</p>
+
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/9880a1ba-afa9-4b16-a8b4-d426c8d3c5da.png" alt="image">
+        </div>
+
+        <p>Save your code; you will need it later</p>
+        <div class="image-container">
+            <img class="small-image"
+                 src="https://websitest1.blob.core.windows.net/images/02b5392b-9d4c-4598-99f9-177e0cb43e6b.png" alt="image">
+        </div>
+
+
+    </div>
+
+    <div>
+        <h4>&#9679; Create a console app and paste this code with your credentials.</h4>
+        <p>Remember to hide your app password in a Key Vault or environment variables for security purposes.</p>
+        <pre><code class="language-csharp">
+        public void SendEmail() {
+            var smtpClient = new SmtpClient() {
+                Port = 587,
+                Credentials = new NetworkCredential("Your email", "Your app password code"),
+                EnableSsl = true,
+                Host = "smtp.gmail.com"
+            };
+            smtpClient.Send("Your email", "Receiver email", "Subject", "Content");
+        }
+        </code></pre>
+    </div>
+</main>
+<footer>
+    <div class="footer-item">
+        <p>&copy; 2024 lewyweb.pl. All rights reserved.</p>
+    </div>
+
+
+    <div class="footer-item">
+        <a href="https://github.com/lewy256">
+            <i class="fa-brands fa-github github-icon" ></i>
+        </a>
+    </div>
+
+
+    <div class="footer-item icon-padding">
+        <a class="github-button" href="https://github.com/lewy256/Blog"
+           data-color-scheme="no-preference: light; light: light; dark: light;"
+           data-icon="octicon-star" data-size="large" data-show-count="true"
+           aria-label="Star buttons/github-buttons on GitHub">Star</a>
+    </div>
+
+
+</footer>
+
+<script src="https://buttons.github.io/buttons.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script src="scripts.js"></script>
+
+</body>
+</html>
