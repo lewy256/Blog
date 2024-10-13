@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Scraping websites with Playwright and HTML Agility Pack">
+    <link rel="canonical" href="https://lewyweb.pl/articles/scraping-websites-with-playwright-and-html-agility-pack.html"/>
+    <title>Scraping websites with Playwright and HTML Agility Pack</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tomorrow-night-blue.min.css">
+</head>
+<body>
+<header>
+    <a class="custom-anchor-white" href="../index.html"><h1>Exploring clouds and coding</h1></a>
+</header>
+
+<nav>
+    <ul >
+        <li><a href="../index.html">Azure</a></li>
+        <li><a href="../angular.html">Angular</a></li>
+        <li><a href="../net.html">.NET</a></li>
+    </ul>
+</nav>
+<main class="article-container">
+    <h2 class="text-center">Scraping websites with Playwright and HTML Agility Pack</h2>
+    <h3 class="text-center">(10/13/2024)</h3>
+    <p>This article explains how to use Azure Functions, Playwright, and the Html Agility Pack library to
+        scrape specific websites, including job offer listings, and save the data to Azure Table Storage for
+        analysis using Power BI.</p>
+    <h4>&#9679; Prerequisites</h4>
+    <p>First of all, we need to choose an environment for our application:</p>
+    <ol>
+        <li>Runtime stack: .NET 8</li>
+        <li>Model: In-process</li>
+        <li>Hosting plan: Consumption</li>
+    </ol>
+    <p>The most cost-effective option is to choose the Consumption plan because we don’t pay for runtime operations.
+        This means that downloading Playwright and other libraries is free, and execution time is not counted.
+        The most crucial consideration is the timeout, as the Consumption plan allows only 10 minutes before an error
+        occurs. I chose the .NET runtime and in-process model because it provides more control over the runtime
+        setup.</p>
+    <h4>&#9679; Scraping a website using HTML Agility Pack</h4>
+    <p>I chose two libraries for scraping websites: Playwright, which is intended for testing web applications, and
+        HTML Agility Pack, which is used for scraping static websites. Playwright is also useful when we want to
+        perform actions like clicking buttons and selecting checkboxes. I use it for these interactions, then
+        load the site into HTML Agility Pack to extract the desired data. The major advantage of HTML Agility Pack
+        is its performance; however, it is not a flexible solution because we must know the XPath for each HTML
+        element we want to scrape. If the website code changes in the meantime, this library will throw an error.
+        Playwright, on the other hand, uses roles to find elements of interest, but it needs to launch a browser
+        to work, which is the main challenge when running it in an Azure Function. </p>
+    <pre><code class="language-csharp">
+     private List&ltstring&gt GetCategories() {
+        var web = new HtmlWeb();
+        var document = web.Load(_baseUrl);
+        var anchors = document.DocumentNode
+            .SelectNodes("//*[@id=\"__next\"]/div[2]/div[1]/div/div[1]/div[1]/div[2]/a");
+
+        if(anchors is null) {
+            throw new NullCollectionException(nameof(anchors), nameof(GetCategories), _baseUrl);
+        }
+
+        var categories = new List&ltstring&gt();
+
+        foreach(var anchor in anchors) {
+            string text = anchor.GetAttributeValue("href", String.Empty);
+
+            if(text != String.Empty) {
+                categories.Add(text);
+            }
+        }
+        if(categories.Count == 0) {
+            throw new EmptyCollectionException(nameof(categories), nameof(GetCategories), _baseUrl);
+        }
+        return categories;
+    }
+    </code></pre>
+    <p>To retrieve categories for my first website to scrape, I use HTML Agility Pack as shown above. If the collection
+        is null or empty, the application sends me an email to notify me that I need to update the XPath. Before you
+        run your application, you must set up your startup configuration. I found the necessary instructions here:
+    <a href="https://stackoverflow.com/questions/77516709/use-playwright-in-an-azure-functions-timer-trigger-c-sharp">
+        https://stackoverflow.com/questions/77516709/use-playwright-in-an-azure-functions-timer-trigger-c-sharp
+    </a></p>
+    <p>You can also increase timeout from default 5 minutes to 10 by change your host.json file: </p>
+    <pre><code class="language-csharp">
+    {
+      "version": "2.0",
+      "logging": {
+        "applicationInsights": {
+          "samplingSettings": {
+            "isEnabled": true,
+            "excludedTypes": "Request"
+          },
+          "enableLiveMetricsFilters": true
+        }
+      },
+      "functionTimeout": "00:10:00"
+    }
+    </code></pre>
+    <h4>&#9679; Scraping a website using the HTML Agility Pack and Playwright</h4>
+    <p>Getting all available experience levels is more complicated than the previous step because the form with the
+        level names loads dynamically without reloading the website. Therefore, I must use Playwright to run the
+        website in a browser, first clicking buttons to decline cookies in the cookie consent message and then
+        clicking another button to trigger the action that loads the form. If we want to ensure the element appears,
+        we can define a locator with an appropriate method to wait for it. After that, we download the website content
+        to extract the relevant data using HTML Agility Pack and validate it. You can also use Playwright to select
+        data by defining a JavaScript function in the EvaluateAllAsync method and running this function in the
+        browser.</p>
+    <pre><code class="language-csharp">
+    private async Task&ltList&ltstring&gt&gt GetExperiences(IPage page) {
+        await page
+            .GetByRole(AriaRole.Button, new() { Name = "Decline all" })
+            .ClickAsync();
+
+        await page
+            .GetByRole(AriaRole.Button, new() { Name = "More filters" })
+            .ClickAsync();
+
+        await page
+            .Locator("//*[@id=\"filters-more\"]/div[3]/fieldset/div/div[1]")
+            .WaitForAsync();
+
+        var pageContent = await page.ContentAsync();
+
+        var document = new HtmlDocument();
+        document.LoadHtml(pageContent);
+
+        var labels = document.DocumentNode
+            .SelectNodes("//*[@id=\"filters-more\"]/div[3]/fieldset/div/div/label");
+
+        if(labels is null) {
+            throw new NullCollectionException(nameof(labels), nameof(GetExperiences), _baseUrl);
+        }
+
+        var experienceLevels = new List&ltstring&gt();
+
+        foreach(var label in labels) {
+            var text = label.InnerText;
+            if(text != String.Empty) {
+                experienceLevels.Add(text);
+            }
+        }
+
+        if(experienceLevels.Count == 0) {
+            throw new EmptyCollectionException(nameof(experienceLevels), nameof(GetExperiences), _baseUrl);
+        }
+
+        return experienceLevels;
+    }
+    </code></pre>
+    <h4>&#9679; Sending data to Azure Table Storage</h4>
+    <p>To limit transactions for Azure Table Storage, we can send data in batch operations. Inserting data into
+        Azure Table is easy, but we must remember that we can send a maximum of 100 objects in a single operation.</p>
+    <pre><code class="language-csharp">
+    public static async Task InsertItemsToTableAsync(this IEnumerable&ltOfferGroup&gt items, ILogger logger) {
+        var tableClient = new TableClient(Environment.GetEnvironmentVariable("AzureWebJobsStorage"), "OfferGroup");
+
+        await tableClient.CreateIfNotExistsAsync();
+
+        var transactionActions = new List&ltTableTransactionAction&gt();
+
+        foreach(var item in items) {
+            transactionActions.Add(new TableTransactionAction(TableTransactionActionType.Add, item));
+
+            if(transactionActions.Count == 100) {
+                try {
+                    await tableClient.SubmitTransactionAsync(transactionActions);
+                    transactionActions.Clear();
+                    logger.LogInformation("Batch insert succeeded.");
+                }
+                catch(Exception ex) {
+                    logger.LogError($"Batch insert failed: {ex.Message}");
+                    throw;
+                }
+            }
+        }
+
+        if(transactionActions.Count > 0) {
+            try {
+                await tableClient.SubmitTransactionAsync(transactionActions);
+                logger.LogInformation("Batch insert succeeded.");
+            }
+            catch(Exception ex) {
+                logger.LogError($"Batch insert failed: {ex.Message}");
+                throw;
+            }
+        }
+    }
+    </code></pre>
+    <h4>&#9679; Running Azure Functions in parallel</h4>
+    <p>As mentioned, the biggest challenge when scraping dynamic websites with Azure Functions is the timeout issue.
+        I scrape job listing websites, but one site is different because it does not display the total number of job
+        offers, so I must count them manually. To do this, I continuously load data in a loop and then scrape it,
+        which takes some time. I need to click a button multiple times until all the job offers are displayed.
+        While we can run Azure Functions in parallel to save time, it’s important to remember that Playwright is
+        a testing library not specifically designed for scraping or for parallel execution in Azure Functions.
+        I initially used the fan-out/fan-in pattern to execute multiple functions concurrently and aggregate the
+        results. However, I found a better solution that allows you to adjust the number of parallel executions
+        and assign threads using the SemaphoreSlim class:
+        <a href="https://dev.to/cgillum/scheduling-tons-of-orchestrator-functions-concurrently-in-c-1ih7">
+            https://dev.to/cgillum/scheduling-tons-of-orchestrator-functions-concurrently-in-c-1ih7</a>.
+        We also need to consider the logical processor count, as exceeding this limit will result in errors that
+        can be viewed in Azure Application Insights. The main reason for running in parallel is to avoid timeout
+        issues. If you want to increase the timeout, you must purchase a premium plan. Therefore, I divided my
+        Azure Functions into smaller parts, running them in parallel, with each function having its own timeout
+        value that does not accumulate.
+    </p>
+    <pre><code class="language-csharp">
+     [FunctionName(nameof(Orchestrator))]
+     public static async Task Orchestrator([OrchestrationTrigger] IDurableOrchestrationContext context) {
+         var categories = await context.CallActivityAsync&ltstring[]&gt(nameof(GetCategories), null);
+         var experiences = await context.CallActivityAsync&ltstring[]&gt(nameof(GetExperiences), null);
+
+         int processors = Environment.ProcessorCount;
+
+         int categoryGroups = (categories.Length + 4) / processors;
+
+         await Enumerable.Range(0, processors).ParallelForEachAsync(100, index => {
+             int start = index * categoryGroups;
+
+             return context.CallActivityAsync(nameof(ProcessItems), new Payload() {
+                 Categories = categories.Slice(start, categoryGroups),
+                 ExperienceLevels = experiences
+             });
+         });
+     }
+
+     [FunctionName(nameof(ProcessItems))]
+     public static async Task ProcessItems([ActivityTrigger] Payload payload, ILogger logger) {
+         try {
+             var offerGroups = await NoFluffJobsService.ScrapingNoFluffJobs(payload.Categories, payload.ExperienceLevels, logger);
+
+             await offerGroups.InsertItemsToTableAsync(logger);
+         }
+         catch(Exception exception) {
+             var exceptions = exception.CaptureLogExceptions(() => exception.ToString().SendEmail(), logger);
+             throw new AggregateException(exceptions);
+         }
+     }
+    </code></pre>
+    <h4>&#9679; List of functions</h4>
+    <p>If you deployed your Azure Functions successfully, you will see them in the Azure portal, ready to be tested
+        by manually running the timer trigger in my case.</p>
+    <div class="image-container">
+        <img class="small-image"
+             src="https://websitest1.blob.core.windows.net/images/9317eb39-12cc-49d8-a56f-a583b4f7d2f5.png"
+             alt="List of functions">
+    </div>
+
+
+    <h4>&#9679; Example of a Power BI report</h4>
+    <p>The Power BI application has a built-in connector that allows us to transform and download data from Azure
+        Table Storage.</p>
+    <div class="image-container">
+        <img class="small-image"
+             src="https://websitest1.blob.core.windows.net/images/7b8fb22d-16b0-4f94-93d7-86dac6b04103.png"
+             alt="Power BI report">
+    </div>
+    <p>If you want to view the source code, click the link: <a href="https://github.com/lewy256/ScrapingBot">
+        https://github.com/lewy256/ScrapingBot</a></p>
+</main>
+<footer>
+    <div class="footer-item">
+        <p>&copy; 2024 lewyweb.pl. All rights reserved.</p>
+    </div>
+    <div class="footer-item">
+        <a href="https://github.com/lewy256" aria-label="GitHub account">
+            <i class="fa-brands fa-github github-icon" ></i>
+        </a>
+    </div>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script src="../scripts.js"></script>
+</body>
+</html>

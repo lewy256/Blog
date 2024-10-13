@@ -19,6 +19,8 @@ jobs:
             az storage blob upload-batch --overwrite --pattern "*.html" --account-name websitest1 --auth-mode key -d '$web' -s .
             az storage blob upload-batch --overwrite --pattern "*.css" --account-name websitest1 --auth-mode key -d '$web' -s .
             az storage blob upload-batch --overwrite --pattern "*.js" --account-name websitest1 --auth-mode key -d '$web' -s .
+            az storage blob upload-batch --overwrite --pattern "*.txt" --account-name websitest1 --auth-mode key -d '$web' -s .
+            az storage blob upload-batch --overwrite --pattern "*.xml" --account-name websitest1 --auth-mode key -d '$web' -s .
 
     - name: logout
       run: |
